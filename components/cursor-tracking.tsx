@@ -11,6 +11,7 @@ export default function CursorTracking() {
   const mousePosition = useMousePosition();
   const lastUpdateRef = useRef<number>(0);
   const userRefRef = useRef<any>(null);
+  const isActiveRef = useRef<boolean>(true);
 
   useEffect(() => {
     if (!userId) return;
@@ -28,16 +29,32 @@ export default function CursorTracking() {
       
       const handleVisibilityChange = () => {
         if (document.hidden) {
+          isActiveRef.current = false;
           set(userRefRef.current, null);
+        } else {
+          isActiveRef.current = true;
         }
+      };
+      
+      // ページがフォーカスを失った時の処理
+      const handleBlur = () => {
+        isActiveRef.current = false;
+      };
+      
+      const handleFocus = () => {
+        isActiveRef.current = true;
       };
       
       window.addEventListener('beforeunload', handleBeforeUnload);
       document.addEventListener('visibilitychange', handleVisibilityChange);
+      window.addEventListener('blur', handleBlur);
+      window.addEventListener('focus', handleFocus);
       
       return () => {
         window.removeEventListener('beforeunload', handleBeforeUnload);
         document.removeEventListener('visibilitychange', handleVisibilityChange);
+        window.removeEventListener('blur', handleBlur);
+        window.removeEventListener('focus', handleFocus);
         if (userRefRef.current) {
           set(userRefRef.current, null);
         }
@@ -46,14 +63,14 @@ export default function CursorTracking() {
   }, [userId]);
 
   useEffect(() => {
-    if (!userId || !userRefRef.current) return;
+    if (!userId || !userRefRef.current || !isActiveRef.current) return;
     
     // スロットリング処理（16ms = 60fps）
     const now = Date.now();
     if (now - lastUpdateRef.current < 16) return;
     lastUpdateRef.current = now;
     
-    // マウス位置を更新（完璧な同期処理）
+    // マウス位置を更新（ページ全体での絶対位置）
     set(userRefRef.current, {
       x: mousePosition.x,
       y: mousePosition.y,
